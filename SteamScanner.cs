@@ -13,6 +13,12 @@ namespace SteamManifestToggler
         public string AppId { get; set; } = string.Empty;
         public string ManifestPath { get; set; } = string.Empty;
 
+        public string CoverUrl => string.IsNullOrWhiteSpace(AppId)
+            ? string.Empty
+            : $"https://cdn.cloudflare.steamstatic.com/steam/apps/{AppId}/library_600x900.jpg";
+
+        public string StatusText => IsReadOnly ? "Steam Updates disabled" : "Updates allowed";
+        
         public bool IsReadOnly
         {
             get
