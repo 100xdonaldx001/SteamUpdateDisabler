@@ -15,7 +15,7 @@ namespace SteamManifestToggler
         private static readonly ConcurrentDictionary<string, Task> InFlightDownloads = new(StringComparer.OrdinalIgnoreCase);
         private static readonly string CacheFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "SteamManifestToggler",
+            "SteamUpdateDisabler",
             "covers");
 
         public static string? GetCoverImagePath(string? appId)

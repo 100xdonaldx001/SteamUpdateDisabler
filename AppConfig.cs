@@ -19,7 +19,7 @@ namespace SteamManifestToggler
 
         private static readonly string ConfigFolderPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "SteamManifestToggler");
+            "SteamUpdateDisabler");
 
         private static readonly string ConfigPath = Path.Combine(ConfigFolderPath, "config.json");
 

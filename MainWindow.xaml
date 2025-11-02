@@ -235,7 +235,7 @@
                     <ComboBox x:Name="LibraryFilter" Grid.Column="4" Style="{StaticResource FilterComboStyle}" SelectionChanged="LibraryFilter_SelectionChanged" ToolTip="Filter by Steam library folder"/>
                     <Button Grid.Column="6" Content="Clear Filters" Style="{StaticResource ActionButtonStyle}" Background="#FF394B59" BorderBrush="#FF2D3A45" Click="ClearFilters_Click" ToolTip="Reset all search filters"/>
                 </Grid>
-                <TextBlock Text="Tip: Double-click a game to toggle its manifest." Margin="0,12,0,0" Foreground="#FF607D8B"/>
+                <TextBlock Text="Tip: Double-click a game to toggle its updates." Margin="0,12,0,0" Foreground="#FF607D8B"/>
             </StackPanel>
         </Border>
  
