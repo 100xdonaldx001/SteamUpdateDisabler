@@ -1,7 +1,10 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -13,7 +16,9 @@ namespace SteamManifestToggler
         private readonly ObservableCollection<GameEntry> _allGames = new();
         private readonly ICollectionView _view;
         private readonly AppConfigData _config;
+        private readonly ObservableCollection<string> _libraryOptions = new();
         private string? _steamRoot;
+        private const string AllLibrariesOption = "All Libraries";
 
         public MainWindow(AppConfigData? config)
         {
@@ -21,6 +26,11 @@ namespace SteamManifestToggler
             _config = config ?? new AppConfigData();;
             _view = CollectionViewSource.GetDefaultView(_allGames);
             GridGames.ItemsSource = _view;
+            LibraryFilter.ItemsSource = _libraryOptions;
+            if (!_libraryOptions.Contains(AllLibrariesOption))
+                _libraryOptions.Add(AllLibrariesOption);
+            LibraryFilter.SelectedItem = AllLibrariesOption;
+            StatusFilter.SelectedIndex = 0;
 
             // Prompt for root on startup
             if (!string.IsNullOrWhiteSpace(_config.SteamRoot))
@@ -73,6 +83,9 @@ namespace SteamManifestToggler
             {
                 _allGames.Clear();
                 _view.Refresh();
+                _libraryOptions.Clear();
+                _libraryOptions.Add(AllLibrariesOption);
+                LibraryFilter.SelectedItem = AllLibrariesOption;
                 StatusText.Text = "Steam root missing or invalid. Use 'Select Root…'.";
                 return;
             }
@@ -83,7 +96,7 @@ namespace SteamManifestToggler
                 _allGames.Clear();
                 foreach (var g in games.OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase))
                     _allGames.Add(g);
-                _view.Refresh();
+                UpdateLibraryOptions(games);
                 ApplyFilter();
                 StatusText.Text = $"Found {_allGames.Count} game(s). Double‑click to toggle.";
             }
@@ -96,13 +109,55 @@ namespace SteamManifestToggler
         private void ApplyFilter()
         {
             var q = (SearchBox.Text ?? string.Empty).Trim().ToLowerInvariant();
+            var status = (StatusFilter.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "All";
+            var librarySelection = LibraryFilter.SelectedItem as string;
             _view.Filter = item =>
             {
                 if (item is not GameEntry g) return false;
-                if (string.IsNullOrEmpty(q)) return true;
-                return (g.Name ?? string.Empty).ToLower().Contains(q) || (g.AppId ?? string.Empty).ToLower().Contains(q);
+                if (!string.IsNullOrEmpty(q))
+                {
+                    var name = (g.Name ?? string.Empty).ToLowerInvariant();
+                    var appId = (g.AppId ?? string.Empty).ToLowerInvariant();
+                    if (!name.Contains(q) && !appId.Contains(q)) return false;
+                }
+
+                if (status == "ReadOnly" && !g.IsReadOnly) return false;
+                if (status == "ReadWrite" && g.IsReadOnly) return false;
+
+                if (!string.IsNullOrWhiteSpace(librarySelection) && librarySelection != AllLibrariesOption)
+                {
+                    if (!string.Equals(g.LibraryName, librarySelection, StringComparison.OrdinalIgnoreCase)) return false;
+                }
+
+                return true;
             };
             _view.Refresh();
+        }
+        
+        private void UpdateLibraryOptions(IEnumerable<GameEntry> games)
+        {
+            var previousSelection = LibraryFilter.SelectedItem as string;
+            var libs = games
+                .Select(g => g.LibraryName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            _libraryOptions.Clear();
+            _libraryOptions.Add(AllLibrariesOption);
+            foreach (var lib in libs)
+                _libraryOptions.Add(lib);
+
+            if (!string.IsNullOrWhiteSpace(previousSelection))
+            {
+                var match = _libraryOptions.FirstOrDefault(l => string.Equals(l, previousSelection, StringComparison.OrdinalIgnoreCase));
+                LibraryFilter.SelectedItem = match ?? AllLibrariesOption;
+            }
+            else
+            {
+                LibraryFilter.SelectedItem = AllLibrariesOption;
+            }
         }
 
         private IEnumerable<GameEntry> SelectedGames()
@@ -164,5 +219,22 @@ namespace SteamManifestToggler
         }
         private void GridGames_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) => ToggleSelected();
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilter();
+        private void StatusFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsInitialized) return;
+            ApplyFilter();
+        }
+        private void LibraryFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsInitialized) return;
+            ApplyFilter();
+        }
+        private void ClearFilters_Click(object sender, RoutedEventArgs e)
+        {
+            SearchBox.Text = string.Empty;
+            StatusFilter.SelectedIndex = 0;
+            LibraryFilter.SelectedItem = AllLibrariesOption;
+            ApplyFilter();
+        }
     }
 }

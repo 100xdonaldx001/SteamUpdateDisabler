@@ -1,7 +1,7 @@
 ﻿<Window x:Class="SteamManifestToggler.StartupWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Steam Manifest Toggler – Setup"
+        Title="Steam Update Toggler – Setup"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         SizeToContent="WidthAndHeight"

@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using System;
 using System.IO;
 using System.Text.RegularExpressions;
 
@@ -15,7 +16,31 @@ namespace SteamManifestToggler
             : $"https://cdn.cloudflare.steamstatic.com/steam/apps/{AppId}/library_600x900.jpg";
         public string? CoverImageSource => !string.IsNullOrWhiteSpace(CoverImagePath) ? CoverImagePath : CoverUrl;
         public string StatusText => IsReadOnly ? "Steam Updates disabled" : "Updates allowed";
-        
+        public string LibraryName
+        {
+            get
+            {
+                try
+                {
+                    var manifestDir = Path.GetDirectoryName(ManifestPath);
+                    if (string.IsNullOrWhiteSpace(manifestDir)) return "Unknown";
+                    var steamappsDir = new DirectoryInfo(manifestDir);
+                    var library = steamappsDir.Parent;
+                    if (library != null)
+                    {
+                        var displayName = string.IsNullOrWhiteSpace(library.Name) ? library.FullName : library.Name;
+                        if (!string.IsNullOrWhiteSpace(library.FullName) && !string.Equals(displayName, library.FullName, StringComparison.OrdinalIgnoreCase))
+                            return $"{displayName} ({library.FullName})";
+                        return displayName ?? "Unknown";
+                    }
+                    return steamappsDir.FullName ?? steamappsDir.Name ?? "Unknown";
+                }
+                catch
+                {
+                    return "Unknown";
+                }
+            }
+        }
         public bool IsReadOnly
         {
             get

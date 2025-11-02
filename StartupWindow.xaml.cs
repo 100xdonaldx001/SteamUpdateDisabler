@@ -60,7 +60,7 @@ namespace SteamManifestToggler
             }
             else
             {
-                ErrorText.Text = "That folder does not look like a Steam installation. Please choose a folder with config/ and libraryfolders.vdf.";
+                ErrorText.Text = "That folder does not look like a Steam installation. Please choose a Steam Folder.";
                 ErrorText.Visibility = Visibility.Visible;
             }
         }
