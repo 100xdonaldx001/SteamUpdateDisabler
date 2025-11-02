@@ -1,34 +1,36 @@
-using Microsoft.Win32;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Forms;
 
 namespace SteamManifestToggler
 {
     public partial class MainWindow : Window
     {
-        private ObservableCollection<GameEntry> _allGames = new();
-        private ICollectionView _view;
+        private readonly ObservableCollection<GameEntry> _allGames = new();
+        private readonly ICollectionView _view;
+        private readonly AppConfigData _config;
         private string? _steamRoot;
 
-        public MainWindow()
+        public MainWindow(AppConfigData? config)
         {
             InitializeComponent();
+            _config = config ?? new AppConfigData();;
             _view = CollectionViewSource.GetDefaultView(_allGames);
             GridGames.ItemsSource = _view;
 
             // Prompt for root on startup
-            var def = SteamScanner.GetDefaultSteamPath();
-            PickRoot(def);
+            if (!string.IsNullOrWhiteSpace(_config.SteamRoot))
+            {
+                ApplySteamRoot(_config.SteamRoot!);
+            }
+            else
+            {
+                StatusText.Text = "Select Steam root to begin…";
+            }
         }
 
         private void PickRoot(string? initial = null)
@@ -36,7 +38,7 @@ namespace SteamManifestToggler
             using var dlg = new FolderBrowserDialog();
             if (!string.IsNullOrWhiteSpace(initial) && Directory.Exists(initial))
                 dlg.SelectedPath = initial;
-            dlg.Description = "Select your Steam ROOT folder (must contain 'config' and a 'libraryfolders.vdf' under steamapps/ or config/).";
+            dlg.Description = "Select your Steam ROOT folder (must contain 'config' and a 'libraryfolders.vdf' under steamapps or config/).";
             var result = dlg.ShowDialog();
             if (result != System.Windows.Forms.DialogResult.OK || string.IsNullOrWhiteSpace(dlg.SelectedPath))
             {
@@ -45,8 +47,7 @@ namespace SteamManifestToggler
             }
 
             var root = dlg.SelectedPath;
-            var vdf = SteamScanner.ResolveLibraryVdfPath(root);
-            if (!Directory.Exists(Path.Combine(root, "config")) || string.IsNullOrEmpty(vdf))
+            if (!SteamScanner.IsValidSteamRoot(root))
             {
                 System.Windows.MessageBox.Show(
                     "The selected directory does not look like a Steam root.\nIt must contain a 'config' folder and a 'libraryfolders.vdf' in steamapps/ or config/.",
@@ -54,23 +55,37 @@ namespace SteamManifestToggler
                 return;
             }
 
+            ApplySteamRoot(root);
+        }
+        
+        private void ApplySteamRoot(string root)
+        {
             _steamRoot = root;
             RootBox.Text = _steamRoot;
+            _config.SteamRoot = root;
+            AppConfig.Save(_config);
             RefreshGames();
         }
 
         private void RefreshGames()
         {
-            if (string.IsNullOrWhiteSpace(_steamRoot)) return;
+            if (!SteamScanner.IsValidSteamRoot(_steamRoot))
+            {
+                _allGames.Clear();
+                _view.Refresh();
+                StatusText.Text = "Steam root missing or invalid. Use 'Select Root…'.";
+                return;
+            }
             try
             {
                 StatusText.Text = "Scanning…";
-                var games = SteamScanner.ScanAllGamesFromRoot(_steamRoot);
+                var games = SteamScanner.ScanAllGamesFromRoot(_steamRoot!);
                 _allGames.Clear();
                 foreach (var g in games.OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase))
                     _allGames.Add(g);
                 _view.Refresh();
-                StatusText.Text = $"[{_steamRoot}] — Found {_allGames.Count} game(s). Double‑click to toggle.";
+                ApplyFilter();
+                StatusText.Text = $"Found {_allGames.Count} game(s). Double‑click to toggle.";
             }
             catch (Exception ex)
             {

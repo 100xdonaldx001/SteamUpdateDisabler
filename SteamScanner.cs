@@ -1,8 +1,5 @@
 using Microsoft.Win32;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace SteamManifestToggler
@@ -12,11 +9,11 @@ namespace SteamManifestToggler
         public string Name { get; set; } = string.Empty;
         public string AppId { get; set; } = string.Empty;
         public string ManifestPath { get; set; } = string.Empty;
-
+        public string? CoverImagePath { get; set; }
         public string CoverUrl => string.IsNullOrWhiteSpace(AppId)
             ? string.Empty
             : $"https://cdn.cloudflare.steamstatic.com/steam/apps/{AppId}/library_600x900.jpg";
-
+        public string? CoverImageSource => !string.IsNullOrWhiteSpace(CoverImagePath) ? CoverImagePath : CoverUrl;
         public string StatusText => IsReadOnly ? "Steam Updates disabled" : "Updates allowed";
         
         public bool IsReadOnly
@@ -59,6 +56,14 @@ namespace SteamManifestToggler
             return null;
         }
 
+        public static bool IsValidSteamRoot(string? root)
+        {
+            if (string.IsNullOrWhiteSpace(root)) return false;
+            if (!Directory.Exists(root)) return false;
+            if (!Directory.Exists(Path.Combine(root, "config"))) return false;
+            return ResolveLibraryVdfPath(root) != null;
+        }
+        
         public static string? ResolveLibraryVdfPath(string root)
         {
             var candidates = new[] {
@@ -92,7 +97,11 @@ namespace SteamManifestToggler
                 foreach (var manifest in Directory.EnumerateFiles(steamapps, "appmanifest_*.acf", SearchOption.TopDirectoryOnly))
                 {
                     var ge = ParseAppManifest(manifest);
-                    if (ge != null) games.Add(ge);
+                    if (ge != null)
+                    {
+                        ge.CoverImagePath = CoverImageCache.GetCoverImagePath(ge.AppId);
+                        games.Add(ge);
+                    }
                 }
             }
             // de-dup by ManifestPath and sort
